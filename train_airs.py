@@ -27,6 +27,7 @@ if __name__ == '__main__':
     parser.add_argument('--multi_scale', type=int, default=0)
     parser.add_argument('--cos_lr', type=int, default=0)
     parser.add_argument('--warmup_epochs', type=int, default=3)
+    parser.add_argument('--wandb_key', type=str, default="")
 
     # normal aug
     parser.add_argument('--aug_degrees', type=float, default=0)  # 旋转变换
@@ -53,6 +54,9 @@ if __name__ == '__main__':
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
+    if args.wandb_key != "":
+        import wandb
+        wandb.login(key=args.wandb_key)
     model = YOLO(args.model_cfg_path)
     # model.info(True,True)
     model.load(args.pretrain_model)
