@@ -317,7 +317,7 @@ class Compose:
 
 class BaseMixTransform:
     """
-    Base class for mix transformations like MixUp and Mosaic.
+    Base class for mix transformations like Cutmix, MixUp and Mosaic.
 
     This class provides a foundation for implementing mix transformations on datasets. It handles the
     probability-based application of transforms and manages the mixing of multiple images and labels.
@@ -348,7 +348,7 @@ class BaseMixTransform:
 
     def __init__(self, dataset, pre_transform=None, p=0.0) -> None:
         """
-        Initializes the BaseMixTransform object for mix transformations like MixUp and Mosaic.
+        Initializes the BaseMixTransform object for mix transformations like CutMix, MixUp and Mosaic.
 
         This class serves as a base for implementing mix transformations in image processing pipelines.
 
@@ -368,16 +368,16 @@ class BaseMixTransform:
 
     def __call__(self, labels):
         """
-        Applies pre-processing transforms and mixup/mosaic transforms to labels data.
+        Applies pre-processing transforms and cutmix/mixup/mosaic transforms to labels data.
 
         This method determines whether to apply the mix transform based on a probability factor. If applied, it
         selects additional images, applies pre-transforms if specified, and then performs the mix transform.
 
         Args:
-            labels (Dict): A dictionary containing label data for an image.
+            labels (dict): A dictionary containing label data for an image.
 
         Returns:
-            (Dict): The transformed labels dictionary, which may include mixed data from other images.
+            (dict): The transformed labels dictionary, which may include mixed data from other images.
 
         Examples:
             >>> transform = BaseMixTransform(dataset, pre_transform=None, p=0.5)
@@ -391,7 +391,7 @@ class BaseMixTransform:
         if isinstance(indexes, int):
             indexes = [indexes]
 
-        # Get images information will be used for Mosaic or MixUp
+        # Get images information will be used for Mosaic, CutMix or MixUp
         mix_labels = [self.dataset.get_image_and_label(i) for i in indexes]
 
         if self.pre_transform is not None:
@@ -401,24 +401,24 @@ class BaseMixTransform:
 
         # Update cls and texts
         labels = self._update_label_text(labels)
-        # Mosaic or MixUp
+        # Mosaic, CutMix or MixUp
         labels = self._mix_transform(labels)
         labels.pop("mix_labels", None)
         return labels
 
     def _mix_transform(self, labels):
         """
-        Applies MixUp or Mosaic augmentation to the label dictionary.
+        Applies CutMix, MixUp or Mosaic augmentation to the label dictionary.
 
-        This method should be implemented by subclasses to perform specific mix transformations like MixUp or
+        This method should be implemented by subclasses to perform specific mix transformations like CutMix, MixUp or
         Mosaic. It modifies the input label dictionary in-place with the augmented data.
 
         Args:
-            labels (Dict): A dictionary containing image and label data. Expected to have a 'mix_labels' key
+            labels (dict): A dictionary containing image and label data. Expected to have a 'mix_labels' key
                 with a list of additional image and label data for mixing.
 
         Returns:
-            (Dict): The modified labels dictionary with augmented data after applying the mix transform.
+            (dict): The modified labels dictionary with augmented data after applying the mix transform.
 
         Examples:
             >>> transform = BaseMixTransform(dataset)
@@ -439,7 +439,7 @@ class BaseMixTransform:
             >>> indexes = transform.get_indexes()
             >>> print(indexes)  # [3, 18, 7, 2]
         """
-        raise NotImplementedError
+        return random.randint(0, len(self.dataset) - 1)
 
     @staticmethod
     def _update_label_text(labels):
@@ -450,11 +450,11 @@ class BaseMixTransform:
         creating a unified set of text labels and updating class IDs accordingly.
 
         Args:
-            labels (Dict): A dictionary containing label information, including 'texts' and 'cls' fields,
+            labels (dict): A dictionary containing label information, including 'texts' and 'cls' fields,
                 and optionally a 'mix_labels' field with additional label dictionaries.
 
         Returns:
-            (Dict): The updated labels dictionary with unified text labels and updated class IDs.
+            (dict): The updated labels dictionary with unified text labels and updated class IDs.
 
         Examples:
             >>> labels = {
@@ -486,468 +486,206 @@ class BaseMixTransform:
             label["texts"] = mix_texts
         return labels
 
+class MixUp(BaseMixTransform):
+    """
+    Applies MixUp augmentation to image datasets.
 
-# class Mosaic(BaseMixTransform):
-#     """
-#     Mosaic augmentation for image datasets.
-#
-#     This class performs mosaic augmentation by combining multiple (4 or 9) images into a single mosaic image.
-#     The augmentation is applied to a dataset with a given probability.
-#
-#     Attributes:
-#         dataset: The dataset on which the mosaic augmentation is applied.
-#         imgsz (int): Image size (height and width) after mosaic pipeline of a single image.
-#         p (float): Probability of applying the mosaic augmentation. Must be in the range 0-1.
-#         n (int): The grid size, either 4 (for 2x2) or 9 (for 3x3).
-#         border (Tuple[int, int]): Border size for width and height.
-#
-#     Methods:
-#         get_indexes: Returns a list of random indexes from the dataset.
-#         _mix_transform: Applies mixup transformation to the input image and labels.
-#         _mosaic3: Creates a 1x3 image mosaic.
-#         _mosaic4: Creates a 2x2 image mosaic.
-#         _mosaic9: Creates a 3x3 image mosaic.
-#         _update_labels: Updates labels with padding.
-#         _cat_labels: Concatenates labels and clips mosaic border instances.
-#
-#     Examples:
-#         >>> from ultralytics.data.augment import Mosaic
-#         >>> dataset = YourDataset(...)  # Your image dataset
-#         >>> mosaic_aug = Mosaic(dataset, imgsz=640, p=0.5, n=4)
-#         >>> augmented_labels = mosaic_aug(original_labels)
-#     """
-#
-#     def __init__(self, dataset, imgsz=640, p=1.0, n=4):
-#         """
-#         Initializes the Mosaic augmentation object.
-#
-#         This class performs mosaic augmentation by combining multiple (4 or 9) images into a single mosaic image.
-#         The augmentation is applied to a dataset with a given probability.
-#
-#         Args:
-#             dataset (Any): The dataset on which the mosaic augmentation is applied.
-#             imgsz (int): Image size (height and width) after mosaic pipeline of a single image.
-#             p (float): Probability of applying the mosaic augmentation. Must be in the range 0-1.
-#             n (int): The grid size, either 4 (for 2x2) or 9 (for 3x3).
-#
-#         Examples:
-#             >>> from ultralytics.data.augment import Mosaic
-#             >>> dataset = YourDataset(...)
-#             >>> mosaic_aug = Mosaic(dataset, imgsz=640, p=0.5, n=4)
-#         """
-#         assert 0 <= p <= 1.0, f"The probability should be in range [0, 1], but got {p}."
-#         assert n in {4, 9}, "grid must be equal to 4 or 9."
-#         super().__init__(dataset=dataset, p=p)
-#         self.imgsz = imgsz
-#         self.border = (-imgsz // 2, -imgsz // 2)  # width, height
-#         self.n = n
-#
-#     def get_indexes(self, buffer=True):
-#         """
-#         Returns a list of random indexes from the dataset for mosaic augmentation.
-#
-#         This method selects random image indexes either from a buffer or from the entire dataset, depending on
-#         the 'buffer' parameter. It is used to choose images for creating mosaic augmentations.
-#
-#         Args:
-#             buffer (bool): If True, selects images from the dataset buffer. If False, selects from the entire
-#                 dataset.
-#
-#         Returns:
-#             (List[int]): A list of random image indexes. The length of the list is n-1, where n is the number
-#                 of images used in the mosaic (either 3 or 8, depending on whether n is 4 or 9).
-#
-#         Examples:
-#             >>> mosaic = Mosaic(dataset, imgsz=640, p=1.0, n=4)
-#             >>> indexes = mosaic.get_indexes()
-#             >>> print(len(indexes))  # Output: 3
-#         """
-#         if buffer:  # select images from buffer
-#             return random.choices(list(self.dataset.buffer), k=self.n - 1)
-#         else:  # select any images
-#             return [random.randint(0, len(self.dataset) - 1) for _ in range(self.n - 1)]
-#
-#     def _mix_transform(self, labels):
-#         """
-#         Applies mosaic augmentation to the input image and labels.
-#
-#         This method combines multiple images (3, 4, or 9) into a single mosaic image based on the 'n' attribute.
-#         It ensures that rectangular annotations are not present and that there are other images available for
-#         mosaic augmentation.
-#
-#         Args:
-#             labels (Dict): A dictionary containing image data and annotations. Expected keys include:
-#                 - 'rect_shape': Should be None as rect and mosaic are mutually exclusive.
-#                 - 'mix_labels': A list of dictionaries containing data for other images to be used in the mosaic.
-#
-#         Returns:
-#             (Dict): A dictionary containing the mosaic-augmented image and updated annotations.
-#
-#         Raises:
-#             AssertionError: If 'rect_shape' is not None or if 'mix_labels' is empty.
-#
-#         Examples:
-#             >>> mosaic = Mosaic(dataset, imgsz=640, p=1.0, n=4)
-#             >>> augmented_data = mosaic._mix_transform(labels)
-#         """
-#         assert labels.get("rect_shape", None) is None, "rect and mosaic are mutually exclusive."
-#         assert len(labels.get("mix_labels", [])), "There are no other images for mosaic augment."
-#         return (
-#             self._mosaic3(labels) if self.n == 3 else self._mosaic4(labels) if self.n == 4 else self._mosaic9(labels)
-#         )  # This code is modified for mosaic3 method.
-#
-#     def _mosaic3(self, labels):
-#         """
-#         Creates a 1x3 image mosaic by combining three images.
-#
-#         This method arranges three images in a horizontal layout, with the main image in the center and two
-#         additional images on either side. It's part of the Mosaic augmentation technique used in object detection.
-#
-#         Args:
-#             labels (Dict): A dictionary containing image and label information for the main (center) image.
-#                 Must include 'img' key with the image array, and 'mix_labels' key with a list of two
-#                 dictionaries containing information for the side images.
-#
-#         Returns:
-#             (Dict): A dictionary with the mosaic image and updated labels. Keys include:
-#                 - 'img' (np.ndarray): The mosaic image array with shape (H, W, C).
-#                 - Other keys from the input labels, updated to reflect the new image dimensions.
-#
-#         Examples:
-#             >>> mosaic = Mosaic(dataset, imgsz=640, p=1.0, n=3)
-#             >>> labels = {
-#             ...     "img": np.random.rand(480, 640, 3),
-#             ...     "mix_labels": [{"img": np.random.rand(480, 640, 3)} for _ in range(2)],
-#             ... }
-#             >>> result = mosaic._mosaic3(labels)
-#             >>> print(result["img"].shape)
-#             (640, 640, 3)
-#         """
-#         mosaic_labels = []
-#         s = self.imgsz
-#         for i in range(3):
-#             labels_patch = labels if i == 0 else labels["mix_labels"][i - 1]
-#             # Load image
-#             img = labels_patch["img"]
-#             h, w = labels_patch.pop("resized_shape")
-#
-#             # Place img in img3
-#             if i == 0:  # center
-#                 img3 = np.full((s * 3, s * 3, img.shape[2]), 114, dtype=np.uint8)  # base image with 3 tiles
-#                 h0, w0 = h, w
-#                 c = s, s, s + w, s + h  # xmin, ymin, xmax, ymax (base) coordinates
-#             elif i == 1:  # right
-#                 c = s + w0, s, s + w0 + w, s + h
-#             elif i == 2:  # left
-#                 c = s - w, s + h0 - h, s, s + h0
-#
-#             padw, padh = c[:2]
-#             x1, y1, x2, y2 = (max(x, 0) for x in c)  # allocate coordinates
-#
-#             img3[y1:y2, x1:x2] = img[y1 - padh :, x1 - padw :]  # img3[ymin:ymax, xmin:xmax]
-#             # hp, wp = h, w  # height, width previous for next iteration
-#
-#             # Labels assuming imgsz*2 mosaic size
-#             labels_patch = self._update_labels(labels_patch, padw + self.border[0], padh + self.border[1])
-#             mosaic_labels.append(labels_patch)
-#         final_labels = self._cat_labels(mosaic_labels)
-#
-#         final_labels["img"] = img3[-self.border[0] : self.border[0], -self.border[1] : self.border[1]]
-#         return final_labels
-#
-#     def _mosaic4(self, labels):
-#         """
-#         Creates a 2x2 image mosaic from four input images.
-#
-#         This method combines four images into a single mosaic image by placing them in a 2x2 grid. It also
-#         updates the corresponding labels for each image in the mosaic.
-#
-#         Args:
-#             labels (Dict): A dictionary containing image data and labels for the base image (index 0) and three
-#                 additional images (indices 1-3) in the 'mix_labels' key.
-#
-#         Returns:
-#             (Dict): A dictionary containing the mosaic image and updated labels. The 'img' key contains the mosaic
-#                 image as a numpy array, and other keys contain the combined and adjusted labels for all four images.
-#
-#         Examples:
-#             >>> mosaic = Mosaic(dataset, imgsz=640, p=1.0, n=4)
-#             >>> labels = {
-#             ...     "img": np.random.rand(480, 640, 3),
-#             ...     "mix_labels": [{"img": np.random.rand(480, 640, 3)} for _ in range(3)],
-#             ... }
-#             >>> result = mosaic._mosaic4(labels)
-#             >>> assert result["img"].shape == (1280, 1280, 3)
-#         """
-#         mosaic_labels = []
-#         s = self.imgsz
-#         yc, xc = (int(random.uniform(-x, 2 * s + x)) for x in self.border)  # mosaic center x, y
-#         for i in range(4):
-#             labels_patch = labels if i == 0 else labels["mix_labels"][i - 1]
-#             # Load image
-#             img = labels_patch["img"]
-#             h, w = labels_patch.pop("resized_shape")
-#
-#             # Place img in img4
-#             if i == 0:  # top left
-#                 img4 = np.full((s * 2, s * 2, img.shape[2]), 114, dtype=np.uint8)  # base image with 4 tiles
-#                 x1a, y1a, x2a, y2a = max(xc - w, 0), max(yc - h, 0), xc, yc  # xmin, ymin, xmax, ymax (large image)
-#                 x1b, y1b, x2b, y2b = w - (x2a - x1a), h - (y2a - y1a), w, h  # xmin, ymin, xmax, ymax (small image)
-#             elif i == 1:  # top right
-#                 x1a, y1a, x2a, y2a = xc, max(yc - h, 0), min(xc + w, s * 2), yc
-#                 x1b, y1b, x2b, y2b = 0, h - (y2a - y1a), min(w, x2a - x1a), h
-#             elif i == 2:  # bottom left
-#                 x1a, y1a, x2a, y2a = max(xc - w, 0), yc, xc, min(s * 2, yc + h)
-#                 x1b, y1b, x2b, y2b = w - (x2a - x1a), 0, w, min(y2a - y1a, h)
-#             elif i == 3:  # bottom right
-#                 x1a, y1a, x2a, y2a = xc, yc, min(xc + w, s * 2), min(s * 2, yc + h)
-#                 x1b, y1b, x2b, y2b = 0, 0, min(w, x2a - x1a), min(y2a - y1a, h)
-#
-#             img4[y1a:y2a, x1a:x2a] = img[y1b:y2b, x1b:x2b]  # img4[ymin:ymax, xmin:xmax]
-#             padw = x1a - x1b
-#             padh = y1a - y1b
-#
-#             labels_patch = self._update_labels(labels_patch, padw, padh)
-#             mosaic_labels.append(labels_patch)
-#         final_labels = self._cat_labels(mosaic_labels)
-#         final_labels["img"] = img4
-#         return final_labels
-#
-#     def _mosaic9(self, labels):
-#         """
-#         Creates a 3x3 image mosaic from the input image and eight additional images.
-#
-#         This method combines nine images into a single mosaic image. The input image is placed at the center,
-#         and eight additional images from the dataset are placed around it in a 3x3 grid pattern.
-#
-#         Args:
-#             labels (Dict): A dictionary containing the input image and its associated labels. It should have
-#                 the following keys:
-#                 - 'img' (numpy.ndarray): The input image.
-#                 - 'resized_shape' (Tuple[int, int]): The shape of the resized image (height, width).
-#                 - 'mix_labels' (List[Dict]): A list of dictionaries containing information for the additional
-#                   eight images, each with the same structure as the input labels.
-#
-#         Returns:
-#             (Dict): A dictionary containing the mosaic image and updated labels. It includes the following keys:
-#                 - 'img' (numpy.ndarray): The final mosaic image.
-#                 - Other keys from the input labels, updated to reflect the new mosaic arrangement.
-#
-#         Examples:
-#             >>> mosaic = Mosaic(dataset, imgsz=640, p=1.0, n=9)
-#             >>> input_labels = dataset[0]
-#             >>> mosaic_result = mosaic._mosaic9(input_labels)
-#             >>> mosaic_image = mosaic_result["img"]
-#         """
-#         mosaic_labels = []
-#         s = self.imgsz
-#         hp, wp = -1, -1  # height, width previous
-#         for i in range(9):
-#             labels_patch = labels if i == 0 else labels["mix_labels"][i - 1]
-#             # Load image
-#             img = labels_patch["img"]
-#             h, w = labels_patch.pop("resized_shape")
-#
-#             # Place img in img9
-#             if i == 0:  # center
-#                 img9 = np.full((s * 3, s * 3, img.shape[2]), 114, dtype=np.uint8)  # base image with 4 tiles
-#                 h0, w0 = h, w
-#                 c = s, s, s + w, s + h  # xmin, ymin, xmax, ymax (base) coordinates
-#             elif i == 1:  # top
-#                 c = s, s - h, s + w, s
-#             elif i == 2:  # top right
-#                 c = s + wp, s - h, s + wp + w, s
-#             elif i == 3:  # right
-#                 c = s + w0, s, s + w0 + w, s + h
-#             elif i == 4:  # bottom right
-#                 c = s + w0, s + hp, s + w0 + w, s + hp + h
-#             elif i == 5:  # bottom
-#                 c = s + w0 - w, s + h0, s + w0, s + h0 + h
-#             elif i == 6:  # bottom left
-#                 c = s + w0 - wp - w, s + h0, s + w0 - wp, s + h0 + h
-#             elif i == 7:  # left
-#                 c = s - w, s + h0 - h, s, s + h0
-#             elif i == 8:  # top left
-#                 c = s - w, s + h0 - hp - h, s, s + h0 - hp
-#
-#             padw, padh = c[:2]
-#             x1, y1, x2, y2 = (max(x, 0) for x in c)  # allocate coordinates
-#
-#             # Image
-#             img9[y1:y2, x1:x2] = img[y1 - padh :, x1 - padw :]  # img9[ymin:ymax, xmin:xmax]
-#             hp, wp = h, w  # height, width previous for next iteration
-#
-#             # Labels assuming imgsz*2 mosaic size
-#             labels_patch = self._update_labels(labels_patch, padw + self.border[0], padh + self.border[1])
-#             mosaic_labels.append(labels_patch)
-#         final_labels = self._cat_labels(mosaic_labels)
-#
-#         final_labels["img"] = img9[-self.border[0] : self.border[0], -self.border[1] : self.border[1]]
-#         return final_labels
-#
-#     @staticmethod
-#     def _update_labels(labels, padw, padh):
-#         """
-#         Updates label coordinates with padding values.
-#
-#         This method adjusts the bounding box coordinates of object instances in the labels by adding padding
-#         values. It also denormalizes the coordinates if they were previously normalized.
-#
-#         Args:
-#             labels (Dict): A dictionary containing image and instance information.
-#             padw (int): Padding width to be added to the x-coordinates.
-#             padh (int): Padding height to be added to the y-coordinates.
-#
-#         Returns:
-#             (Dict): Updated labels dictionary with adjusted instance coordinates.
-#
-#         Examples:
-#             >>> labels = {"img": np.zeros((100, 100, 3)), "instances": Instances(...)}
-#             >>> padw, padh = 50, 50
-#             >>> updated_labels = Mosaic._update_labels(labels, padw, padh)
-#         """
-#         nh, nw = labels["img"].shape[:2]
-#         labels["instances"].convert_bbox(format="xyxy")
-#         labels["instances"].denormalize(nw, nh)
-#         labels["instances"].add_padding(padw, padh)
-#         return labels
-#
-#     def _cat_labels(self, mosaic_labels):
-#         """
-#         Concatenates and processes labels for mosaic augmentation.
-#
-#         This method combines labels from multiple images used in mosaic augmentation, clips instances to the
-#         mosaic border, and removes zero-area boxes.
-#
-#         Args:
-#             mosaic_labels (List[Dict]): A list of label dictionaries for each image in the mosaic.
-#
-#         Returns:
-#             (Dict): A dictionary containing concatenated and processed labels for the mosaic image, including:
-#                 - im_file (str): File path of the first image in the mosaic.
-#                 - ori_shape (Tuple[int, int]): Original shape of the first image.
-#                 - resized_shape (Tuple[int, int]): Shape of the mosaic image (imgsz * 2, imgsz * 2).
-#                 - cls (np.ndarray): Concatenated class labels.
-#                 - instances (Instances): Concatenated instance annotations.
-#                 - mosaic_border (Tuple[int, int]): Mosaic border size.
-#                 - texts (List[str], optional): Text labels if present in the original labels.
-#
-#         Examples:
-#             >>> mosaic = Mosaic(dataset, imgsz=640)
-#             >>> mosaic_labels = [{"cls": np.array([0, 1]), "instances": Instances(...)} for _ in range(4)]
-#             >>> result = mosaic._cat_labels(mosaic_labels)
-#             >>> print(result.keys())
-#             dict_keys(['im_file', 'ori_shape', 'resized_shape', 'cls', 'instances', 'mosaic_border'])
-#         """
-#         if len(mosaic_labels) == 0:
-#             return {}
-#         cls = []
-#         instances = []
-#         imgsz = self.imgsz * 2  # mosaic imgsz
-#         for labels in mosaic_labels:
-#             cls.append(labels["cls"])
-#             instances.append(labels["instances"])
-#         # Final labels
-#         final_labels = {
-#             "im_file": mosaic_labels[0]["im_file"],
-#             "ori_shape": mosaic_labels[0]["ori_shape"],
-#             "resized_shape": (imgsz, imgsz),
-#             "cls": np.concatenate(cls, 0),
-#             "instances": Instances.concatenate(instances, axis=0),
-#             "mosaic_border": self.border,
-#         }
-#         final_labels["instances"].clip(imgsz, imgsz)
-#         good = final_labels["instances"].remove_zero_area_boxes()
-#         final_labels["cls"] = final_labels["cls"][good]
-#         if "texts" in mosaic_labels[0]:
-#             final_labels["texts"] = mosaic_labels[0]["texts"]
-#         return final_labels
-#
-#
-# class MixUp(BaseMixTransform):
-#     """
-#     Applies MixUp augmentation to image datasets.
-#
-#     This class implements the MixUp augmentation technique as described in the paper "mixup: Beyond Empirical Risk
-#     Minimization" (https://arxiv.org/abs/1710.09412). MixUp combines two images and their labels using a random weight.
-#
-#     Attributes:
-#         dataset (Any): The dataset to which MixUp augmentation will be applied.
-#         pre_transform (Callable | None): Optional transform to apply before MixUp.
-#         p (float): Probability of applying MixUp augmentation.
-#
-#     Methods:
-#         get_indexes: Returns a random index from the dataset.
-#         _mix_transform: Applies MixUp augmentation to the input labels.
-#
-#     Examples:
-#         >>> from ultralytics.data.augment import MixUp
-#         >>> dataset = YourDataset(...)  # Your image dataset
-#         >>> mixup = MixUp(dataset, p=0.5)
-#         >>> augmented_labels = mixup(original_labels)
-#     """
-#
-#     def __init__(self, dataset, pre_transform=None, p=0.0) -> None:
-#         """
-#         Initializes the MixUp augmentation object.
-#
-#         MixUp is an image augmentation technique that combines two images by taking a weighted sum of their pixel
-#         values and labels. This implementation is designed for use with the Ultralytics YOLO framework.
-#
-#         Args:
-#             dataset (Any): The dataset to which MixUp augmentation will be applied.
-#             pre_transform (Callable | None): Optional transform to apply to images before MixUp.
-#             p (float): Probability of applying MixUp augmentation to an image. Must be in the range [0, 1].
-#
-#         Examples:
-#             >>> from ultralytics.data.dataset import YOLODataset
-#             >>> dataset = YOLODataset("path/to/data.yaml")
-#             >>> mixup = MixUp(dataset, pre_transform=None, p=0.5)
-#         """
-#         super().__init__(dataset=dataset, pre_transform=pre_transform, p=p)
-#
-#     def get_indexes(self):
-#         """
-#         Get a random index from the dataset.
-#
-#         This method returns a single random index from the dataset, which is used to select an image for MixUp
-#         augmentation.
-#
-#         Returns:
-#             (int): A random integer index within the range of the dataset length.
-#
-#         Examples:
-#             >>> mixup = MixUp(dataset)
-#             >>> index = mixup.get_indexes()
-#             >>> print(index)
-#             42
-#         """
-#         return random.randint(0, len(self.dataset) - 1)
-#
-#     def _mix_transform(self, labels):
-#         """
-#         Applies MixUp augmentation to the input labels.
-#
-#         This method implements the MixUp augmentation technique as described in the paper
-#         "mixup: Beyond Empirical Risk Minimization" (https://arxiv.org/abs/1710.09412).
-#
-#         Args:
-#             labels (Dict): A dictionary containing the original image and label information.
-#
-#         Returns:
-#             (Dict): A dictionary containing the mixed-up image and combined label information.
-#
-#         Examples:
-#             >>> mixer = MixUp(dataset)
-#             >>> mixed_labels = mixer._mix_transform(labels)
-#         """
-#         r = np.random.beta(32.0, 32.0)  # mixup ratio, alpha=beta=32.0
-#         labels2 = labels["mix_labels"][0]
-#         labels["img"] = (labels["img"] * r + labels2["img"] * (1 - r)).astype(np.uint8)
-#         labels["instances"] = Instances.concatenate([labels["instances"], labels2["instances"]], axis=0)
-#         labels["cls"] = np.concatenate([labels["cls"], labels2["cls"]], 0)
-#         return labels
+    This class implements the MixUp augmentation technique as described in the paper "mixup: Beyond Empirical Risk
+    Minimization" (https://arxiv.org/abs/1710.09412). MixUp combines two images and their labels using a random weight.
 
+    Attributes:
+        dataset (Any): The dataset to which MixUp augmentation will be applied.
+        pre_transform (Callable | None): Optional transform to apply before MixUp.
+        p (float): Probability of applying MixUp augmentation.
+
+    Methods:
+        get_indexes: Returns a random index from the dataset.
+        _mix_transform: Applies MixUp augmentation to the input labels.
+
+    Examples:
+        >>> from ultralytics.data.augment import MixUp
+        >>> dataset = YourDataset(...)  # Your image dataset
+        >>> mixup = MixUp(dataset, p=0.5)
+        >>> augmented_labels = mixup(original_labels)
+    """
+
+    def __init__(self, dataset, pre_transform=None, p=0.0) -> None:
+        """
+        Initializes the MixUp augmentation object.
+
+        MixUp is an image augmentation technique that combines two images by taking a weighted sum of their pixel
+        values and labels. This implementation is designed for use with the Ultralytics YOLO framework.
+
+        Args:
+            dataset (Any): The dataset to which MixUp augmentation will be applied.
+            pre_transform (Callable | None): Optional transform to apply to images before MixUp.
+            p (float): Probability of applying MixUp augmentation to an image. Must be in the range [0, 1].
+
+        Examples:
+            >>> from ultralytics.data.dataset import YOLODataset
+            >>> dataset = YOLODataset("path/to/data.yaml")
+            >>> mixup = MixUp(dataset, pre_transform=None, p=0.5)
+        """
+        super().__init__(dataset=dataset, pre_transform=pre_transform, p=p)
+
+    def get_indexes(self):
+        """
+        Get a random index from the dataset.
+
+        This method returns a single random index from the dataset, which is used to select an image for MixUp
+        augmentation.
+
+        Returns:
+            (int): A random integer index within the range of the dataset length.
+
+        Examples:
+            >>> mixup = MixUp(dataset)
+            >>> index = mixup.get_indexes()
+            >>> print(index)
+            42
+        """
+        return random.randint(0, len(self.dataset) - 1)
+
+    def _mix_transform(self, labels):
+        """
+        Applies MixUp augmentation to the input labels.
+
+        This method implements the MixUp augmentation technique as described in the paper
+        "mixup: Beyond Empirical Risk Minimization" (https://arxiv.org/abs/1710.09412).
+
+        Args:
+            labels (Dict): A dictionary containing the original image and label information.
+
+        Returns:
+            (Dict): A dictionary containing the mixed-up image and combined label information.
+
+        Examples:
+            >>> mixer = MixUp(dataset)
+            >>> mixed_labels = mixer._mix_transform(labels)
+        """
+        r = np.random.beta(32.0, 32.0)  # mixup ratio, alpha=beta=32.0
+        labels2 = labels["mix_labels"][0]
+        labels["img"] = (labels["img"] * r + labels2["img"] * (1 - r)).astype(np.uint8)
+        labels["instances"] = Instances.concatenate([labels["instances"], labels2["instances"]], axis=0)
+        labels["cls"] = np.concatenate([labels["cls"], labels2["cls"]], 0)
+        return labels
+
+class CutMix(BaseMixTransform):
+    """
+    Applies CutMix augmentation to image datasets as described in the paper https://arxiv.org/abs/1905.04899.
+
+    CutMix combines two images by replacing a random rectangular region of one image with the corresponding region from another image,
+    and adjusts the labels proportionally to the area of the mixed region.
+
+    Attributes:
+        dataset (Any): The dataset to which CutMix augmentation will be applied.
+        pre_transform (Callable | None): Optional transform to apply before CutMix.
+        p (float): Probability of applying CutMix augmentation.
+        beta (float): Beta distribution parameter for sampling the mixing ratio (default=1.0).
+        num_areas (int): Number of areas to try to cut and mix (default=3).
+
+    Methods:
+        _mix_transform: Applies CutMix augmentation to the input labels.
+        _rand_bbox: Generates random bounding box coordinates for the cut region.
+
+    Examples:
+        >>> from ultralytics.data.augment import CutMix
+        >>> dataset = YourDataset(...)  # Your image dataset
+        >>> cutmix = CutMix(dataset, p=0.5)
+        >>> augmented_labels = cutmix(original_labels)
+    """
+
+    def __init__(self, dataset, pre_transform=None, p=0.0, beta=1.0, num_areas=3) -> None:
+        """
+        Initializes the CutMix augmentation object.
+
+        Args:
+            dataset (Any): The dataset to which CutMix augmentation will be applied.
+            pre_transform (Callable | None): Optional transform to apply before CutMix.
+            p (float): Probability of applying CutMix augmentation.
+            beta (float): Beta distribution parameter for sampling the mixing ratio (default=1.0).
+            num_areas (int): Number of areas to try to cut and mix (default=3).
+        """
+        super().__init__(dataset=dataset, pre_transform=pre_transform, p=p)
+        self.beta = beta
+        self.num_areas = num_areas
+
+    def _rand_bbox(self, width, height):
+        """
+        Generates random bounding box coordinates for the cut region.
+
+        Args:
+            width (int): Width of the image.
+            height (int): Height of the image.
+
+        Returns:
+            (tuple): (x1, y1, x2, y2) coordinates of the bounding box.
+        """
+        # Sample mixing ratio from Beta distribution
+        lam = np.random.beta(self.beta, self.beta)
+
+        cut_ratio = np.sqrt(1.0 - lam)
+        cut_w = int(width * cut_ratio)
+        cut_h = int(height * cut_ratio)
+
+        # Random center
+        cx = np.random.randint(width)
+        cy = np.random.randint(height)
+
+        # Bounding box coordinates
+        x1 = np.clip(cx - cut_w // 2, 0, width)
+        y1 = np.clip(cy - cut_h // 2, 0, height)
+        x2 = np.clip(cx + cut_w // 2, 0, width)
+        y2 = np.clip(cy + cut_h // 2, 0, height)
+
+        return x1, y1, x2, y2
+
+    def _mix_transform(self, labels):
+        """
+        Applies CutMix augmentation to the input labels.
+
+        Args:
+            labels (dict): A dictionary containing the original image and label information.
+
+        Returns:
+            (dict): A dictionary containing the mixed image and adjusted labels.
+
+        Examples:
+            >>> cutter = CutMix(dataset)
+            >>> mixed_labels = cutter._mix_transform(labels)
+        """
+        # Get a random second image
+        h, w = labels["img"].shape[:2]
+
+        cut_areas = np.asarray([self._rand_bbox(w, h) for _ in range(self.num_areas)], dtype=np.float32)
+        ioa1 = bbox_ioa(cut_areas, labels["instances"].bboxes)  # (self.num_areas, num_boxes)
+        idx = np.nonzero(ioa1.sum(axis=1) <= 0)[0]
+        if len(idx) == 0:
+            return labels
+
+        labels2 = labels.pop("mix_labels")[0]
+        area = cut_areas[np.random.choice(idx)]  # randomle select one
+        ioa2 = bbox_ioa(area[None], labels2["instances"].bboxes).squeeze(0)
+        indexes2 = np.nonzero(ioa2 >= (0.01 if len(labels["instances"].segments) else 0.1))[0]
+        if len(indexes2) == 0:
+            return labels
+
+        instances2 = labels2["instances"][indexes2]
+        instances2.convert_bbox("xyxy")
+        instances2.denormalize(w, h)
+
+        # Apply CutMix
+        x1, y1, x2, y2 = area.astype(np.int32)
+        labels["img"][y1:y2, x1:x2] = labels2["img"][y1:y2, x1:x2]
+
+        # Restrain instances2 to the random bounding border
+        instances2.add_padding(-x1, -y1)
+        instances2.clip(x2 - x1, y2 - y1)
+        instances2.add_padding(x1, y1)
+
+        labels["cls"] = np.concatenate([labels["cls"], labels2["cls"][indexes2]], axis=0)
+        labels["instances"] = Instances.concatenate([labels["instances"], instances2], axis=0)
+        return labels
 
 class RandomPerspective:
     """
