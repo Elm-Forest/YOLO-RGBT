@@ -57,6 +57,8 @@ if __name__ == '__main__':
     if args.wandb_key != "":
         import wandb
         wandb.login(key=args.wandb_key)
+        from ultralytics import settings
+        settings.update({"wandb": True})
     model = YOLO(args.model_cfg_path)
     # model.info(True,True)
     model.load(args.pretrain_model)
