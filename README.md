@@ -1,4 +1,4 @@
-# YOLOv11-RGBT: Towards a Comprehensive Multispectral Object Detection Framework
+# YOLOv11-RGBT: Towards a Comprehensive Single-Stage Multispectral Object Detection Framework
 
 ## Introduction
 This project aims to demonstrate how to configure visible and infrared datasets to accommodate multimodal object detection tasks based on YOLOv11. With three different configuration methods (directory configuration and TXT file configuration), you can easily associate visible light datasets with infrared datasets.
@@ -16,7 +16,7 @@ This project aims to demonstrate how to configure visible and infrared datasets 
 
 ## News:
 - 2025-04-18  Add CTF [CTF](https://github.com/DocF/multispectral-object-detection)
-
+- 2025-05-31 New multi-spectral object detection dataset with arbitrary number of channels
 
 ## Supported image formats（use_simotm）:
 1. uint8: 'Gray'  Single-channel 8-bit gray-scale image.  channels=1 ,  yaml   ch: 1 
@@ -287,7 +287,7 @@ PRs or Issues are welcome to jointly improve the project. This project is a long
 - GitHub: [https://github.com/wandahangFY](https://github.com/wandahangFY)
 - Email: wandahang@foxmail.com
 - QQ: 1753205688
-- QQ Group: 483264141
+- QQ Group: 483264141 (Free)
 
 ![QQ Group](PaperImages/QQ.png)
 

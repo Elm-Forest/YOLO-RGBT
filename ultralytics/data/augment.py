@@ -807,6 +807,7 @@ class RandomPerspective:
 
         # Combined rotation matrix
         M = T @ S @ R @ P @ C  # order of operations (right to left) is IMPORTANT
+        value = (114, 114, 114)  # RGB  RGBRGB6C Gray
         # 2025-03-03 'yzc'
         if len(img.shape) > 2:
             channels = img.shape[2]
@@ -1061,85 +1062,85 @@ class RandomPerspective:
         ar = np.maximum(w2 / (h2 + eps), h2 / (w2 + eps))  # aspect ratio
         return (w2 > wh_thr) & (h2 > wh_thr) & (w2 * h2 / (w1 * h1 + eps) > area_thr) & (ar < ar_thr)  # candidates
 
-
-class RandomHSV:
-    """
-    Randomly adjusts the Hue, Saturation, and Value (HSV) channels of an image.
-
-    This class applies random HSV augmentation to images within predefined limits set by hgain, sgain, and vgain.
-
-    Attributes:
-        hgain (float): Maximum variation for hue. Range is typically [0, 1].
-        sgain (float): Maximum variation for saturation. Range is typically [0, 1].
-        vgain (float): Maximum variation for value. Range is typically [0, 1].
-
-    Methods:
-        __call__: Applies random HSV augmentation to an image.
-
-    Examples:
-        >>> import numpy as np
-        >>> from ultralytics.data.augment import RandomHSV
-        >>> augmenter = RandomHSV(hgain=0.5, sgain=0.5, vgain=0.5)
-        >>> image = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)
-        >>> labels = {"img": image}
-        >>> augmenter(labels)
-        >>> augmented_image = augmented_labels["img"]
-    """
-
-    def __init__(self, hgain=0.5, sgain=0.5, vgain=0.5) -> None:
-        """
-        Initializes the RandomHSV object for random HSV (Hue, Saturation, Value) augmentation.
-
-        This class applies random adjustments to the HSV channels of an image within specified limits.
-
-        Args:
-            hgain (float): Maximum variation for hue. Should be in the range [0, 1].
-            sgain (float): Maximum variation for saturation. Should be in the range [0, 1].
-            vgain (float): Maximum variation for value. Should be in the range [0, 1].
-
-        Examples:
-            >>> hsv_aug = RandomHSV(hgain=0.5, sgain=0.5, vgain=0.5)
-            >>> hsv_aug(image)
-        """
-        self.hgain = hgain
-        self.sgain = sgain
-        self.vgain = vgain
-
-    def __call__(self, labels):
-        """
-        Applies random HSV augmentation to an image within predefined limits.
-
-        This method modifies the input image by randomly adjusting its Hue, Saturation, and Value (HSV) channels.
-        The adjustments are made within the limits set by hgain, sgain, and vgain during initialization.
-
-        Args:
-            labels (Dict): A dictionary containing image data and metadata. Must include an 'img' key with
-                the image as a numpy array.
-
-        Returns:
-            (None): The function modifies the input 'labels' dictionary in-place, updating the 'img' key
-                with the HSV-augmented image.
-
-        Examples:
-            >>> hsv_augmenter = RandomHSV(hgain=0.5, sgain=0.5, vgain=0.5)
-            >>> labels = {"img": np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)}
-            >>> hsv_augmenter(labels)
-            >>> augmented_img = labels["img"]
-        """
-        img = labels["img"]
-        if self.hgain or self.sgain or self.vgain:
-            r = np.random.uniform(-1, 1, 3) * [self.hgain, self.sgain, self.vgain] + 1  # random gains
-            hue, sat, val = cv2.split(cv2.cvtColor(img, cv2.COLOR_BGR2HSV))
-            dtype = img.dtype  # uint8
-
-            x = np.arange(0, 256, dtype=r.dtype)
-            lut_hue = ((x * r[0]) % 180).astype(dtype)
-            lut_sat = np.clip(x * r[1], 0, 255).astype(dtype)
-            lut_val = np.clip(x * r[2], 0, 255).astype(dtype)
-
-            im_hsv = cv2.merge((cv2.LUT(hue, lut_hue), cv2.LUT(sat, lut_sat), cv2.LUT(val, lut_val)))
-            cv2.cvtColor(im_hsv, cv2.COLOR_HSV2BGR, dst=img)  # no return needed
-        return labels
+#
+# class RandomHSV:
+#     """
+#     Randomly adjusts the Hue, Saturation, and Value (HSV) channels of an image.
+#
+#     This class applies random HSV augmentation to images within predefined limits set by hgain, sgain, and vgain.
+#
+#     Attributes:
+#         hgain (float): Maximum variation for hue. Range is typically [0, 1].
+#         sgain (float): Maximum variation for saturation. Range is typically [0, 1].
+#         vgain (float): Maximum variation for value. Range is typically [0, 1].
+#
+#     Methods:
+#         __call__: Applies random HSV augmentation to an image.
+#
+#     Examples:
+#         >>> import numpy as np
+#         >>> from ultralytics.data.augment import RandomHSV
+#         >>> augmenter = RandomHSV(hgain=0.5, sgain=0.5, vgain=0.5)
+#         >>> image = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)
+#         >>> labels = {"img": image}
+#         >>> augmenter(labels)
+#         >>> augmented_image = augmented_labels["img"]
+#     """
+#
+#     def __init__(self, hgain=0.5, sgain=0.5, vgain=0.5) -> None:
+#         """
+#         Initializes the RandomHSV object for random HSV (Hue, Saturation, Value) augmentation.
+#
+#         This class applies random adjustments to the HSV channels of an image within specified limits.
+#
+#         Args:
+#             hgain (float): Maximum variation for hue. Should be in the range [0, 1].
+#             sgain (float): Maximum variation for saturation. Should be in the range [0, 1].
+#             vgain (float): Maximum variation for value. Should be in the range [0, 1].
+#
+#         Examples:
+#             >>> hsv_aug = RandomHSV(hgain=0.5, sgain=0.5, vgain=0.5)
+#             >>> hsv_aug(image)
+#         """
+#         self.hgain = hgain
+#         self.sgain = sgain
+#         self.vgain = vgain
+#
+#     def __call__(self, labels):
+#         """
+#         Applies random HSV augmentation to an image within predefined limits.
+#
+#         This method modifies the input image by randomly adjusting its Hue, Saturation, and Value (HSV) channels.
+#         The adjustments are made within the limits set by hgain, sgain, and vgain during initialization.
+#
+#         Args:
+#             labels (Dict): A dictionary containing image data and metadata. Must include an 'img' key with
+#                 the image as a numpy array.
+#
+#         Returns:
+#             (None): The function modifies the input 'labels' dictionary in-place, updating the 'img' key
+#                 with the HSV-augmented image.
+#
+#         Examples:
+#             >>> hsv_augmenter = RandomHSV(hgain=0.5, sgain=0.5, vgain=0.5)
+#             >>> labels = {"img": np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)}
+#             >>> hsv_augmenter(labels)
+#             >>> augmented_img = labels["img"]
+#         """
+#         img = labels["img"]
+#         if self.hgain or self.sgain or self.vgain:
+#             r = np.random.uniform(-1, 1, 3) * [self.hgain, self.sgain, self.vgain] + 1  # random gains
+#             hue, sat, val = cv2.split(cv2.cvtColor(img, cv2.COLOR_BGR2HSV))
+#             dtype = img.dtype  # uint8
+#
+#             x = np.arange(0, 256, dtype=r.dtype)
+#             lut_hue = ((x * r[0]) % 180).astype(dtype)
+#             lut_sat = np.clip(x * r[1], 0, 255).astype(dtype)
+#             lut_val = np.clip(x * r[2], 0, 255).astype(dtype)
+#
+#             im_hsv = cv2.merge((cv2.LUT(hue, lut_hue), cv2.LUT(sat, lut_sat), cv2.LUT(val, lut_val)))
+#             cv2.cvtColor(im_hsv, cv2.COLOR_HSV2BGR, dst=img)  # no return needed
+#         return labels
 
 
 class RandomFlip:
@@ -1363,7 +1364,8 @@ class LetterBox:
         elif channels == 4:
             value = (114, 114, 114,114)  # RGB 彩色图像
         else:
-            raise ValueError("Unsupported number of channels,ch=",channels)
+            pass
+            # raise ValueError("Unsupported number of channels,ch=",channels)
         # 2025-01-05-end
         if channels == 6:
             img1= img[:, :, :3]
@@ -1381,10 +1383,16 @@ class LetterBox:
             b2, g2, r2 = cv2.split(img2)
             # 合并成6通道图像
             img = cv2.merge((b, g, r, b2, g2, r2))
-        else :
+        elif channels in [1,3,4]:
             img = cv2.copyMakeBorder(
                 img, top, bottom, left, right, cv2.BORDER_CONSTANT, value=value
             )  # add border
+        else:  # multispectral
+            h, w, c = img.shape
+            pad_img = np.full((h + top + bottom, w + left + right, c), fill_value=114, dtype=img.dtype)
+            pad_img[top: top + h, left: left + w] = img
+            img = pad_img
+
         if labels.get("ratio_pad"):
             labels["ratio_pad"] = (labels["ratio_pad"], (left, top))  # for evaluation
 
@@ -2862,6 +2870,8 @@ class RandomHSV:
     def __call__(self, labels):
         """Applies random horizontal or vertical flip to an image with a given probability."""
         img = labels['img']
+        if img.shape[-1] != 3:  # only apply to RGB images
+            return labels
         if self.hgain or self.sgain or self.vgain:
             r = np.random.uniform(-1, 1, 3) * [self.hgain, self.sgain, self.vgain] + 1  # random gains
             hue, sat, val = cv2.split(cv2.cvtColor(img, cv2.COLOR_BGR2HSV))
